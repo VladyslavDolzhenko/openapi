@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "version": "1.0.0",
-    "title": "my-blob-svc",
+    "title": "my-blob-user-svc",
     "description": ""
   },
   "servers": [
@@ -12,7 +12,7 @@
     }
   ],
   "paths": {
-    "/CreateBlob": {
+    "/integrations/blobs": {
       "post": {
         "tags": [
           "Blobs"
@@ -23,15 +23,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "data"
-                ],
-                "properties": {
-                  "data": {
-                    "$ref": "#/components/schemas/Blob"
-                  }
-                }
+                "$ref": "#/components/schemas/CreateBlobRequest"
               }
             }
           }
@@ -42,12 +34,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/Blob"
-                    }
-                  }
+                  "$ref": "#/components/schemas/CreateBlobResponse"
                 }
               }
             }
@@ -74,176 +61,38 @@
           }
         }
       }
-    },
-    "/DeleteBlob": {
-      "delete": {
-        "tags": [
-          "Blobs"
-        ],
-        "summary": "Delete blob by ID",
-        "operationId": "deleteBlobById",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/BlobIdParameter"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Blob deleted successfully"
-          },
-          "404": {
-            "description": "Blob isn't found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Errors"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Errors"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/GetBlobById": {
-      "get": {
-        "tags": [
-          "Blobs"
-        ],
-        "summary": "Get blob by ID",
-        "operationId": "getBlobById",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/BlobIdParameter"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Blob retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Blob"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Blob isn't found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Errors"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Errors"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/GetBlobList": {
-      "get": {
-        "tags": [
-          "Blobs"
-        ],
-        "summary": "Get list of blobs",
-        "operationId": "getBlobList",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/pageLimitParam"
-          },
-          {
-            "$ref": "#/components/parameters/pageNumberParam"
-          },
-          {
-            "$ref": "#/components/parameters/sortingParam"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of blobs",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlobList"
-                }
-              }
-            }
-          },
-            "500": {
-              "description": "Internal server error",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Errors"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
     "schemas": {
-      "Blob": {
-        "type": "object",
-        "required": [
-          "id",
-          "type",
-          "attributes"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "blobs"
-            ]
-          },
-          "attributes": {
-            "type": "object",
-            "format": "json"
-          }
-        }
-      },
-      "BlobCreationRequest": {
+      "CreateBlobRequest": {
         "type": "object",
         "required": [
           "data"
         ],
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/Blob"
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "blobs"
+                ]
+              },
+              "attributes": {
+                "$ref": "#/components/schemas/User_blob"
+              }
+            }
           }
         }
       },
-      "BlobList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/Blob"
+      "CreateBlobResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/User_blob"
+          }
         }
       },
       "Errors": {
@@ -290,18 +139,49 @@
             }
           }
         }
+      },
+      "User_blob": {
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "first_name",
+          "last_name",
+          "age",
+          "country",
+          "birth_date",
+          "specialty"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer"
+          },
+          "country": {
+            "type": "string"
+          },
+          "birth_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "specialty": {
+            "type": "string"
+          }
+        }
       }
     },
     "parameters": {
-      "BlobIdParameter": {
-        "name": "blobId",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "string",
-          "format": "uuid"
-        }
-      },
       "pageLimitParam": {
         "in": "query",
         "name": "page[limit]",
