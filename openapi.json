@@ -12,12 +12,12 @@
     }
   ],
   "paths": {
-    "/integrations/blobs": {
+    "/blobs:": {
       "post": {
         "tags": [
           "Blobs"
         ],
-        "summary": "Create blob",
+        "summary": "Blob",
         "operationId": "createBlob",
         "requestBody": {
           "content": {
