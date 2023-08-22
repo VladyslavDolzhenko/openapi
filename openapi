@@ -17,7 +17,7 @@
         "tags": [
           "Blobs"
         ],
-        "summary": "Create blob",
+        "summary": "Blobs",
         "operationId": "createBlob",
         "requestBody": {
           "content": {
