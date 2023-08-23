@@ -12,13 +12,13 @@
     }
   ],
   "paths": {
-    "/Blobs": {
+    "/blob": {
       "post": {
         "tags": [
           "Blobs"
         ],
-        "summary": "Blobs",
-        "operationId": "createBlob",
+        "summary": "Blob",
+        "operationId": "Add a new blob to the db",
         "requestBody": {
           "content": {
             "application/json": {
