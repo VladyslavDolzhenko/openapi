@@ -17,7 +17,7 @@
         "tags": [
           "Blobs"
         ],
-        "summary": "Blob",
+        "summary": "/blob",
         "operationId": "Add a new blob to the db",
         "requestBody": {
           "content": {
