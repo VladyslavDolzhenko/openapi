@@ -1,48 +1,238 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "version": "1.0.0",
-    "title": "my-blob-svc",
-    "description": ""
+    "version": "4.3.0",
+    "title": "Identity Storage",
+    "x-logo": {
+      "url": "https://tokend.io/images/logo.svg",
+      "backgroundColor": "transparent",
+      "altText": "TokenD"
+    },
+    "contact": {
+      "email": "dev@distributedlab.com",
+      "url": "https://tokend.io",
+      "name": "Support"
+    },
+    "description": "### Overview\n Identity Storage uses [JSON:API](https://jsonapi.org/) convention to format requests and responses.\n Key words \"MUST\", \"MUST NOT\", \"REQUIRED\", \"SHALL\", \"SHALL NOT\", \"SHOULD\", \"SHOULD NOT\", \"RECOMMENDED\", \"MAY\",\n and \"OPTIONAL\" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt>).\n\n### Security\nRequest signature implementation is based on [IETF HTTP Signatures draft RFC](https://tools.ietf.org/html/draft-cavage-http-signatures), except that implicit `headers` parameter is not supported; clients must explicitly specify headers used for signing.\nThe only signature algorithm supported is `ed25519-sha256`, which uses public signer key as `keyId`.\nBoth `Signature` and `Authorization` HTTP authentication schemas are supported.\nThe minimum recommended data to sign are `(request-header)` and `date`.\n",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
   },
+  "tags": [
+    {
+      "name": "Account"
+    },
+    {
+      "name": "Wallet",
+      "description": "Wallet exists entirely on the key server, and its purpose is to hold encrypted user data and provide additional authentication means such as 2FA and email confirmation.\nWallets are identified by a wallet id that is derived from email and password.\n\n### Wallet id derivation\n\nWallet id is a SHA256 HMAC of scrypt key derived from wallet email and client-generated salt.\n\nDefault KDF parameters provided by the key server should be used for each new wallet id and keychain derivation.\n\nWallet id should be hex encoded.\n\n### Keychain derivation\n\nKeychain may be used to store wallet keys and any arbitrary, client-specific data.\n\nTo login with email/password, a client should store at least `account id` and `seed`.\n"
+    },
+    {
+      "name": "2FA"
+    },
+    {
+      "name": "KDF"
+    },
+    {
+      "name": "Blob",
+      "description": "Blobs allow users to store arbitrary text.\n\nAny blob has privacy settings and client-provided tags for filtering.\n\nTo access private blobs, the request signature is required; otherwise only public ones will be returned.\n\n| Type                 | Public       | Filter     |\n|----------------------|--------------|------------|\n| asset_description    | public       | 1          |\n| fund_overview        | public       | 2          |\n| fund_update          | public       | 4          |\n| nav_update           | public       | 8          |\n| fund_document        | public       | 16         |\n| alpha                | public       | 32         |\n| bravo                | public       | 64         |\n| charlie              | public       | 128        |\n| delta                | public       | 256        |\n| token_terms          | public       | 512        |\n| token_metrics        | public       | 1024       |\n| kyc_form             | private      | 2048       |\n| kyc_id_document      | private      | 4096       |\n| kyc_poa              | private      | 8192       |\n| identity_mind_reject | private      | 16384      |\n"
+    },
+    {
+      "name": "Identity",
+      "description": "Identity is created simultaneously with the creation of an account, and it represents the state of an account in the system.\n"
+    },
+    {
+      "name": "Document",
+      "description": "\nAllows getting upload policy and document url.\n\n| Type                 | Public       |\n|----------------------|--------------|\n| asset_logo           | public       |\n| fund_logo            | public       |\n| fund_document        | public       |\n| nav_report           | public       |\n| alpha                | public       |\n| bravo                | public       |\n| charlie              | public       |\n| delta                | public       |\n| token_terms          | public       |\n| token_metrics        | public       |\n| general_public       | public       |\n| asset_photo          | public       |\n| kyc_id_document      | private      |\n| kyc_poa              | private      |\n| kyc_selfie           | private      |\n| general_private      | private      |\n"
+    },
+    {
+      "name": "Sign In Flow",
+      "description": "The process of signing in lies in acquiring client's signing key from encrypted keychain data.\n\n* get KDF parameters for an existing wallet using email. If email parameter is not specified, then the default KDF will be used.\n\n* derive wallet id using email and password\n\n    Wallet id is an SHA256HMAC of a key derived from wallet email and client-generated salt with the help of scrypt.\n\n    Default KDF parameters provided by the key server should be used for each new wallet id and keychain derivation.\n\n    Wallet id should be hex encoded.\n\n* get wallet with encrypted keychain data\n\n    Get current wallet state by wallet id.\n\n* decrypt keychain data\n\n  Keychain may be used to store wallet keys and any arbitrary, client-specific data.\n\nTo login with email/password, a client should store at least `account id` and `seed`.\n"
+    },
+    {
+      "name": "Sign Up Flow",
+      "description": "To have full access to the platform, a client should create their own account entity. To achieve this, the following steps must be completed.\n\n* create wallet\n\n* depending on the platform settings, additional verification may be required; for details, see [email verification flow](#tag/Email-Verification-Flow)\n"
+    },
+    {
+      "name": "Email Verification Flow",
+      "description": "Depending on the implementation, TokenD system can require email verifications. If this is the case, then any attempt to get user's wallet will be failed with `403 Forbidden error`.\n\nAfter the wallet creation, a user will receive an email letter with a verification link.\n\nTo verify an email, a user has to follow the link in the verification message. Verification link contains client router payload with meta fields token and wallet id. Use this values for the wallet verification request.\n"
+    },
+    {
+      "name": "KYC Recovery Flow",
+      "description": "To perform the kyc recovery, a user has to update wallet (this process is similar to changing wallet id, yet is slightly different)\n\n* obtain KDF parameters with email and the `is_recovery` flag set to `true`\n\n* generate new account id that will be used as signer for initiating kyc recovery.\n\n* perform a wallet update request with the new keychain_data, `recovery-wallet` type and new signer relation. New wallet id should be used during the wallet update.\n"
+    },
+    {
+      "name": "Sessions",
+      "description": "Session is created on login and contains session key and session ID.\n\nExpires in 10 minutes by default.\n"
+    },
+    {
+      "name": "Settings",
+      "description": "Settings allow to assign any custom settings to account\n"
+    }
+  ],
+  "x-tagGroups": [
+    {
+      "name": "Sign up",
+      "tags": [
+        "Sign Up Flow",
+        "Create Wallet"
+      ]
+    },
+    {
+      "name": "Sign in",
+      "tags": [
+        "Sign In Flow",
+        "KDF",
+        "Get Wallet"
+      ]
+    },
+    {
+      "name": "Email Verification",
+      "tags": [
+        "Email Verification Flow",
+        "Request Verification",
+        "Verify Wallet"
+      ]
+    },
+    {
+      "name": "KYC Recovery",
+      "tags": [
+        "KYC Recovery Flow",
+        "KDF",
+        "Update Wallet"
+      ]
+    },
+    {
+      "name": "References",
+      "tags": [
+        "Wallet",
+        "2FA",
+        "KDF",
+        "Blob",
+        "Identity",
+        "Document",
+        "Private Identity",
+        "Favorites",
+        "Enum",
+        "Invites",
+        "Multisig",
+        "Sessions",
+        "Settings",
+        "Account"
+      ]
+    }
+  ],
   "servers": [
     {
-      "url": "https://api.demo.tokend.io",
+      "url": "https://api.achilles.tokend.io",
       "description": "TokenD Developer Environment"
     }
   ],
   "paths": {
-    "/blob": {
+    "/accounts": {
       "post": {
         "tags": [
-          "Blobs"
+          "Account"
         ],
-        "summary": "/blob",
-        "operationId": "Add a new blob to the db",
+        "summary": "Create Account",
+        "description": "Creates account using provided account-id and signers\n",
+        "operationId": "createAccount",
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/vnd.api+json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateBlobRequest"
+                "type": "object",
+                "required": [
+                  "data",
+                  "included"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/CreateAccount"
+                  },
+                  "included": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/Signer"
+                        }
+                      ]
+                    }
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Blob created successfully",
+            "description": "account created"
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "409": {
+            "description": "account already exist"
+          },
+          "500": {
+            "description": "failed to create account"
+          }
+        }
+      }
+    },
+    "/accounts/{address}/blobs": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "Blob"
+        ],
+        "summary": "Account-owned Blob",
+        "description": "Create account-owned blob.\n\n🔒 An owner's signature is needed\n",
+        "deprecated": true,
+        "operationId": "createAccountBlob",
+        "responses": {
+          "200": {
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateBlobResponse"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Blob"
+                    }
+                  }
                 }
               }
             }
           },
-          "400": {
-            "description": "Bad request or validation error",
+          "401": {
+            "description": "blob creation not allowed",
             "content": {
-              "application/json": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "account does not exist",
+            "content": {
+              "application/vnd.api+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Errors"
                 }
@@ -50,9 +240,267 @@
             }
           },
           "500": {
-            "description": "Internal server error",
+            "description": "failed to save blob",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/Blob"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "#/components/schemas/Blob"
+              }
+            }
+          },
+          "description": "Create Blob",
+          "required": true
+        }
+      }
+    },
+    "/accounts/{address}/blobs/{blob}": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "blob",
+          "in": "path",
+          "description": "blob identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Blob"
+        ],
+        "summary": "Account-owned blob",
+        "description": "Get account-owned blob. \n\n🔒 An owner's or admin's signature is needed for private blobs\n",
+        "operationId": "getAccountBlob",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Success",
             "content": {
               "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Blob"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "blob not found",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to get blobs",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Upload Policy (with owner)",
+        "description": "Get upload policy. \n\n🔒 An owner's signature is needed\n",
+        "deprecated": true,
+        "operationId": "getAccountUploadPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/DocumentRequest"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/DocumentRequest"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Get Upload Policy",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "attributes"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "example": "upload_policy"
+                        },
+                        "attributes": {
+                          "type": "object",
+                          "required": [
+                            "bucket",
+                            "key",
+                            "policy",
+                            "url",
+                            "x-amz-algorithm",
+                            "x-amz-credential",
+                            "x-amz-date",
+                            "x-amz-signature"
+                          ],
+                          "properties": {
+                            "bucket": {
+                              "description": "name of the bucket",
+                              "type": "string",
+                              "example": "foobar"
+                            },
+                            "key": {
+                              "type": "string",
+                              "description": "document identifier",
+                              "example": "document123"
+                            },
+                            "policy": {
+                              "type": "string",
+                              "description": "upload policy"
+                            },
+                            "url": {
+                              "type": "string",
+                              "description": "url to upload an object"
+                            },
+                            "x-amz-algorithm": {
+                              "type": "string"
+                            },
+                            "x-amz-credential": {
+                              "type": "string"
+                            },
+                            "x-amz-date": {
+                              "type": "string"
+                            },
+                            "x-amz-signature": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "must have account for uploading documents",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "wallet not found",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to build form data",
+            "content": {
+              "application/vnd.api+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Errors"
                 }
@@ -61,77 +509,3309 @@
           }
         }
       }
-    }
-  },
-  "components": {
-    "schemas": {
-      "Blob": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "first_name": {
-            "type": "string"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "age": {
-            "type": "integer"
-          },
-          "country": {
-            "type": "string"
-          },
-          "birth_date": {
-            "type": "string",
-            "format": "date"
-          },
-          "specialty": {
+    },
+    "/accounts/{address}/documents/{document}": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "user_id",
-          "first_name",
-          "last_name",
-          "age",
-          "country",
-          "birth_date",
-          "specialty"
-        ]
-      },
-      "CreateBlobRequest": {
-        "type": "object",
-        "required": [
-          "data"
+        {
+          "name": "document",
+          "in": "path",
+          "description": "document identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Document"
         ],
-        "properties": {
-          "data": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "blobs"
-                ]
-              },
-              "attributes": {
-                "$ref": "#/components/schemas/Blob"
+        "summary": "Document URL (with owner)",
+        "description": "Get document url. \n\n🔒 An owner's or admin's signature is needed\n",
+        "deprecated": true,
+        "operationId": "getAccountDocumentURL",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentURL"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "must be signer",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed get document url",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{address}/signers": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Add Signer",
+        "description": " Adds signer to account when some service needs to perform some action with unregistred account. \n\n🔒 An admin's signature is needed\n",
+        "operationId": "addSigner",
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/IdentitySigner"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "500": {
+            "description": "failed to create signer"
+          }
+        }
+      }
+    },
+    "/blobs": {
+      "post": {
+        "tags": [
+          "Blob"
+        ],
+        "summary": "Blob",
+        "description": "Create blob\n\n🔒 An admin's signature is needed\n",
+        "operationId": "createBlob",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/Blob"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "blob creation not allowed",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to save blob",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/BlobRequest"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/BlobRequest"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/blobs/{blob}": {
+      "parameters": [
+        {
+          "name": "blob",
+          "in": "path",
+          "description": "Blob identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Blob"
+        ],
+        "summary": "Blob",
+        "description": "\n🔒 An admin's signature is needed for private blobs\n",
+        "operationId": "getBlob",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Blob"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "blob not found",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to get blob",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
               }
             }
           }
         }
       },
-      "CreateBlobResponse": {
+      "delete": {
+        "tags": [
+          "Blob"
+        ],
+        "summary": "Remove Blob",
+        "description": " \n\n🔒 An admin's signature is needed\n",
+        "operationId": "deleteBlob",
+        "responses": {
+          "204": {
+            "description": "Blob deleted"
+          },
+          "400": {
+            "description": "invalid blob id",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to get blob or failed to mark blob deleted",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/enums": {
+      "get": {
+        "tags": [
+          "Enum"
+        ],
+        "summary": "Enums",
+        "description": "Returns enums presented in the system.\n",
+        "deprecated": true,
+        "operationId": "getEnums",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "required": [
+                        "type",
+                        "attributes"
+                      ],
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "example": "enums"
+                        },
+                        "attributes": {
+                          "description": "Free-form object containing enums presented in the system",
+                          "type": "object",
+                          "required": [
+                            "business_type",
+                            "countries"
+                          ],
+                          "properties": {
+                            "business_type": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "example": "General Trading"
+                              }
+                            },
+                            "countries": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "example": "Aland Islands"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "post": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Upload Policy",
+        "description": "Get upload policy.\n\n🔒 An admin's signature is needed\n",
+        "operationId": "getUploadPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/Document"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/Document"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Get Upload Policy",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "attributes"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "example": "upload_policy"
+                        },
+                        "attributes": {
+                          "type": "object",
+                          "required": [
+                            "bucket",
+                            "key",
+                            "policy",
+                            "url",
+                            "x-amz-algorithm",
+                            "x-amz-credential",
+                            "x-amz-date",
+                            "x-amz-signature"
+                          ],
+                          "properties": {
+                            "bucket": {
+                              "description": "name of the bucket",
+                              "type": "string",
+                              "example": "foobar"
+                            },
+                            "key": {
+                              "type": "string",
+                              "description": "document identifier",
+                              "example": "document123"
+                            },
+                            "policy": {
+                              "type": "string",
+                              "description": "upload policy"
+                            },
+                            "url": {
+                              "type": "string",
+                              "description": "url to upload an object"
+                            },
+                            "x-amz-algorithm": {
+                              "type": "string"
+                            },
+                            "x-amz-credential": {
+                              "type": "string"
+                            },
+                            "x-amz-date": {
+                              "type": "string"
+                            },
+                            "x-amz-signature": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "only master is allowed",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to build form data",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document}": {
+      "parameters": [
+        {
+          "name": "document",
+          "in": "path",
+          "description": "document identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Document URL",
+        "description": "Get document url. \n\n🔒 An admin's signature is needed\n",
+        "operationId": "getDocumentURL",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentURL"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "only master is allowed",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed get document url",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors "
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities '": {
+      "get": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "List private identities",
+        "description": "List of full identities \n \n 🔒. An admin's signature is needed\n",
+        "operationId": "getPrivateIdentities",
+        "parameters": [
+          {
+            "name": "filter[email]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by email"
+          },
+          {
+            "name": "filter[address]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by address"
+          },
+          {
+            "name": "filter[phone]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by phone number"
+          },
+          {
+            "name": "filter[identifier]",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by email or phone number"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/Identity"
+                    },
+                    "links": {
+                      "type": "object",
+                      "description": "Provides links for pagination",
+                      "properties": {
+                        "next": {
+                          "type": "string",
+                          "description": "link to the next page",
+                          "example": "/identities?page[number]=2&page[limit]=15"
+                        },
+                        "self": {
+                          "type": "string",
+                          "description": "link to the current page",
+                          "example": "identities?page[number]=1&page[limit]=15"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "signer not allowed",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed get identities",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors",
+                  "/email": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities": {
+      "post": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Add Identity",
+        "description": "Creates an identity with status `unregistered` and account with one system signer.\nCan be used to perform payments before registration. After registration system signer will be removed and new wallet will be tided with previosly created account.\n",
+        "operationId": "addIdentity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/IdentityRequest"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/Identity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "List Identities",
+        "description": "Get list of identities. One of filters must be set.\n",
+        "operationId": "getIdentities",
+        "parameters": [
+          {
+            "name": "filter[state]",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by state"
+          },
+          {
+            "name": "filter[email]",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by email."
+          },
+          {
+            "name": "filter[address]",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by address."
+          },
+          {
+            "name": "filter[phone]",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by phone number"
+          },
+          {
+            "name": "filter[identifier]",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by email or phone number"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "seraching by partial email or address"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/PublicIdentity"
+                    },
+                    "links": {
+                      "type": "object",
+                      "description": "Provides links for pagination",
+                      "properties": {
+                        "next": {
+                          "type": "string",
+                          "description": "link to the next page",
+                          "example": "/identities?filter[address]=GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH&page[number]=2&page[limit]=15"
+                        },
+                        "self": {
+                          "type": "string",
+                          "description": "link to the current page",
+                          "example": "identities?filter[address]=GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH&page[number]=1&page[limit]=15"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request or email/address filter not set",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to get identities",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/{address}/settings": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get settings",
+        "description": "Get all account settings. \n\n🔒 An owner's or master signature is needed \n\n Reserved keys: \n - `client_domain` - store domain of user webclient",
+        "operationId": "getSettings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pageNumberParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentitySetting"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "auth error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Set settings item",
+        "description": "Set settings item. \n\n🔒 An owner's signature is needed\n",
+        "operationId": "setSettings",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentitySetting"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "auth error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/{address}/settings/{key}": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "key",
+          "in": "path",
+          "description": "settings item key",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get settings item",
+        "description": "Get settings item by specified key. If item not found returns 200 with settings item model, but value attribute will be null. \n\n🔒 An owner's or master signature is needed\n",
+        "operationId": "getSettingsItem",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentitySetting"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "auth error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/{address}/settings/phone": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "Identity"
+        ],
+        "operationId": "changePhoneNumber",
+        "summary": "Change PhoneNumber",
+        "description": "Add or change user's phonenumber\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/ChangePhone"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "additional factor required",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "phone number already exist"
+          },
+          "500": {
+            "description": "failed to change phone",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/{address}/settings/telegram": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "Identity"
+        ],
+        "operationId": "changeTelegramUsername",
+        "summary": "Change Telegram Username",
+        "description": "Add or change user's telegram username\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/ChangeTelegramUsername"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "additional factor required"
+          },
+          "409": {
+            "description": "username already exist"
+          },
+          "500": {
+            "description": "failed to change telegram username",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/{email_address}": {
+      "delete": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Delete Identity & Wallet with email",
+        "description": "\n\n🔒 An owner's signature is needed\n",
+        "operationId": "deleteWithEmail",
+        "parameters": [
+          {
+            "name": "email_address",
+            "in": "path",
+            "required": true,
+            "description": "Account email address",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "auth error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/mass-emails": {
+      "post": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "By Emails",
+        "description": "\n🔒 An admin's signature is needed\n",
+        "operationId": "getIdentitieByEmails",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/MassEmailsKey"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicIdentity"
+                      }
+                    },
+                    "links": {
+                      "type": "object",
+                      "description": "Provides links for pagination",
+                      "properties": {
+                        "next": {
+                          "type": "string",
+                          "description": "link to the next page",
+                          "example": "/identities?filter[address]=GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH&page[number]=2&page[limit]=15"
+                        },
+                        "self": {
+                          "type": "string",
+                          "description": "link to the current page",
+                          "example": "identities?filter[address]=GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH&page[number]=1&page[limit]=15"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "account does not exist",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to add email",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identities/multi": {
+      "post": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Add Identities",
+        "description": "Creates an identity with status `unregistered` and account with one system signer.\nCan be used to perform payments before registration. After registration system signer will be removed and new wallet will be tided with previosly created account.\n",
+        "operationId": "addIdentities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/IdentityRequest"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Identity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integrations/multisig/accounts/{address}/relationships/signer": {
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "description": "account identifier",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "Multisig"
+        ],
+        "operationId": "createSigner",
+        "description": "Returns signer data to add a new signer. New signer's identity should be different than the existing.\n\nSaves signer to to add a signature to the account transactions.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "attributes"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "example": "signer"
+                      },
+                      "attributes": {
+                        "type": "object",
+                        "required": [
+                          "role_id",
+                          "weight"
+                        ],
+                        "properties": {
+                          "role_id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "weight": {
+                            "type": "integer",
+                            "example": 1000
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/Signer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to create signer",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integrations/multisig/transactions": {
+      "post": {
+        "tags": [
+          "Multisig"
+        ],
+        "operationId": "multisigTransactions",
+        "description": "Checks TFA factor with the highest priopity (transaction purpose will be returned in meta).\n\nAdds the signature of the saved signer and submit transaction to the network.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tx"
+                ],
+                "properties": {
+                  "tx": {
+                    "type": "string",
+                    "description": "base-64 encoded XDR representation of transaction itself",
+                    "example": "AAAAAEHCX5tmu0fXlkE9GLIOLO185ih5QI7V+PZ1mtb1tnzSA59veKFdUjsAAAAAAAAAAAAAAABchp31A..."
+                  },
+                  "wait_for_ingest": {
+                    "type": "boolean",
+                    "description": "defines whether to wait for ingest of transaction or not",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "successfully submitted",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad input parameter",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "additional factor required",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "request has timed out",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "transaction failed",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites_multi": {
+      "post": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "Invites",
+        "description": "Create invites using user's email. If account already exist - invite token will be sent. Otherwise pending invite will be saved until account creation.\n🔒 An sale owner's (for whitelist invites) or admin's signature is needed\n",
+        "operationId": "createInviteMulti",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/WhitelistInvite"
+                        },
+                        {
+                          "$ref": "#/components/schemas/GeneralInvite"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "email added to list"
+          },
+          "409": {
+            "description": "invite already exist",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to add email",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites": {
+      "post": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "Invites",
+        "description": "Send verification & redirect link for admin-registered users. Use type 'admin-invite'. 🔒 Admin's signature required\n\n**Old deprecated usage:** Create invite with user's email. If account already exist - invite token will be sent. Otherwise pending invite will be saved until account creation.\n🔒 A sale owner's (for whitelist invites) or admin's signature required\n",
+        "operationId": "createInvite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/AdminInvite"
+                      },
+                      {
+                        "$ref": "#/components/schemas/WhitelistInvite"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GeneralInvite"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "email added to list"
+          },
+          "500": {
+            "description": "failed to add email",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "List invites",
+        "description": "List pending invites.\n🔒 An sale owner's (for filtering whitelist invites by sale-id) or admin's signature is needed\n",
+        "operationId": "getPending",
+        "parameters": [
+          {
+            "name": "filter[sale-id]",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "filtering by sale id. An sale owner's signature is needed"
+          },
+          {
+            "$ref": "#/components/parameters/pageNumberParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InviteEntity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not found"
+          },
+          "500": {
+            "description": "failed to get invites list"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "Delete invites",
+        "description": "🔒 An sale owner's or admin's signature is needed\n",
+        "operationId": "deleteWhitelistInvite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/InviteEntityKey"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "email added to list"
+          },
+          "500": {
+            "description": "failed to add email",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kdf": {
+      "get": {
+        "tags": [
+          "KDF"
+        ],
+        "summary": "KDF params",
+        "description": "Returns current default derivation parameters or parameters used to derive a particular wallet. \n\n### Parameters\n\n`email` - will return KDF parameters for wallet keychain, `404 Not Found` if email is unknown.\n\n`is_recovery` - boolean denoting if the client wants to get KDF for the recovery keychain.\n\nIf the `email` parameter is not specified, the default KDF will be used.\n",
+        "operationId": "getKDF",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "description": "will return KDF parameters for the wallet keychain",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_recovery",
+            "description": "boolean denoting whether or not the client wants to get KDF for the recovery keychain",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/KDF"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "KDF not found"
+          },
+          "500": {
+            "description": "Internal Error"
+          }
+        }
+      }
+    },
+    "/sessions/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "session token",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Sessions"
+        ],
+        "description": "Returns session by session token.\n\nExtends session.\n",
+        "operationId": "getSession",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "token or session not found"
+          }
+        }
+      }
+    },
+    "/verification": {
+      "post": {
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Verification Token",
+        "description": "Request email verification token\n",
+        "operationId": "requestVerificationToken",
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data",
+                  "included"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/RequestToken"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/Token"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "500": {
+            "description": "failed to get email token"
+          }
+        }
+      }
+    },
+    "/wallets": {
+      "post": {
+        "tags": [
+          "Wallet",
+          "Create Wallet"
+        ],
+        "summary": "Wallet",
+        "description": "\n### Factor\n\nKeychain derived using the same email/password but with different account and salt. Used as a second factor to confirm the password possession.\n\n### KDF\n\n`id` - version of KDF parameters used to derive the wallet data\nCreates a new session.\n",
+        "operationId": "createWallet",
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data",
+                  "included"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/CreateWallet"
+                  },
+                  "included": {
+                    "type": "array",
+                    "description": "password is required",
+                    "items": {
+                      "type": "object",
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/Password"
+                        },
+                        {
+                          "$ref": "#/components/schemas/Session"
+                        },
+                        {
+                          "$ref": "#/components/schemas/Signer"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "current wallet state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Wallet"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "409": {
+            "description": "wallet or recovery conflict"
+          },
+          "500": {
+            "description": "failed to save wallets or failed to create account"
+          }
+        }
+      }
+    },
+    "/wallets/{wallet-id}": {
+      "parameters": [
+        {
+          "name": "wallet-id",
+          "in": "path",
+          "description": "id of wallet",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "public_ip",
+          "in": "query",
+          "description": "if `public_ip = true` client`s ip is not saved",
+          "schema": {
+            "type": "string",
+            "example": false
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Wallet",
+          "Get Wallet"
+        ],
+        "summary": "Wallet",
+        "description": "Returns wallet by its id.\nCreates a new session.\n",
+        "operationId": "getWallet",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Wallet"
+                    },
+                    "included": {
+                      "type": "array",
+                      "items": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/Session"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "wallet verificationor additional factor required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "oneOf": [
+                          {
+                            "$ref": "#/components/schemas/VerificationRequiredError"
+                          },
+                          {
+                            "$ref": "#/components/schemas/SecondFactorRequiredError"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "wallet not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wallet"
+        ],
+        "summary": "Remove Wallet",
+        "description": "Delete the specified wallet \n\n🔒 An admin's signature is needed\n",
+        "operationId": "deleteWallet",
+        "deprecated": true,
+        "responses": {
+          "204": {
+            "description": "deleted"
+          },
+          "401": {
+            "description": "not allowed"
+          },
+          "500": {
+            "description": "failed to delete wallet"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wallet",
+          "Update Wallet"
+        ],
+        "summary": "Update Wallet",
+        "description": "Similar to the wallet creation, but it also contains additional transaction resource used to update account signers or new signer as relation and new wallet-id as url parameter for KYC recovery. \n\n Wallet changes will be commited only if blockchain transaction submission has been successful.\n \n Successful request might update wallet id if the new password were used during the derivation.\n \n  🔒  An owner's signature is needed\n\n ### Transaction \n\n`envelope` - base64 encoded transaction envelope used to update account signers\n",
+        "operationId": "changeWalletID",
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data",
+                  "included"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/UpdateWallet"
+                      },
+                      {
+                        "$ref": "#/components/schemas/KYCRecoveryWallet"
+                      }
+                    ]
+                  },
+                  "included": {
+                    "description": "transaction is required when updating wallet",
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/TransactionEnvelope"
+                        },
+                        {
+                          "$ref": "#/components/schemas/Password"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": true,
+                      "$ref": "#/components/schemas/Wallet"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "401": {
+            "description": "not allowed"
+          },
+          "403": {
+            "description": "additional factor required"
+          },
+          "404": {
+            "description": "wallet not found"
+          },
+          "409": {
+            "description": "wallet already exist"
+          },
+          "500": {
+            "description": "failed to update wallet"
+          }
+        }
+      }
+    },
+    "/wallets/{wallet-id}/factors": {
+      "parameters": [
+        {
+          "name": "wallet-id",
+          "in": "path",
+          "description": "id of a wallet",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "2FA"
+        ],
+        "summary": "Factors",
+        "description": "Returns list of factors used for 2FA \n",
+        "operationId": "getWalletFactors",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WalletFactor"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "wallet not found"
+          },
+          "500": {
+            "description": "failed to update wallet"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "2FA"
+        ],
+        "summary": "Factor",
+        "description": "Creates non-active TFA factor of given type \n\n🔒 An owner's signature is needed\n",
+        "operationId": "createWalletFactors",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "$ref": "#/components/schemas/TFAKey"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": 1
+                        },
+                        "type": {
+                          "type": "string",
+                          "example": "backend"
+                        },
+                        "attributes": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "example": "totp"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "401": {
+            "description": "not allowed"
+          },
+          "403": {
+            "description": "factor check failed"
+          },
+          "404": {
+            "description": "wallet not found"
+          },
+          "409": {
+            "description": "factor should be created during the signup"
+          },
+          "500": {
+            "description": "failed to get wallet, failed to generate backend, failed to save backend"
+          }
+        }
+      }
+    },
+    "/wallets/{wallet-id}/factors/{backend}": {
+      "parameters": [
+        {
+          "name": "wallet-id",
+          "in": "path",
+          "description": "id of a wallet",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "backend",
+          "in": "path",
+          "description": "id of a factor",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "2FA"
+        ],
+        "summary": "Factor",
+        "description": "Deletes the given factor \n\n🔒 An owner's signature is needed\n",
+        "operationId": "deleteFactor",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "401": {
+            "description": "not allowed"
+          },
+          "403": {
+            "description": "additional factor required"
+          },
+          "404": {
+            "description": "backend not found"
+          },
+          "500": {
+            "description": "failed to get backend"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "2FA"
+        ],
+        "summary": "Update factor",
+        "description": "Updates the given TFA factor. \n Updating `priority` to non-zero value (i.e., enabling the factor) requires the TFA verification with this factor \n\n🔒 An owner's signature is needed\n",
+        "operationId": "updateFactor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/WalletFactor"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "401": {
+            "description": "not allowed"
+          },
+          "403": {
+            "description": "tfa check failed"
+          },
+          "404": {
+            "description": "backend not found"
+          },
+          "500": {
+            "description": "failed to update factor"
+          }
+        }
+      }
+    },
+    "/wallets/{wallet-id}/factors/{backend}/verification": {
+      "parameters": [
+        {
+          "name": "wallet-id",
+          "in": "path",
+          "description": "id of a wallet",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "backend",
+          "in": "path",
+          "description": "id of a factor",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "2FA"
+        ],
+        "summary": "Factor verification",
+        "description": "Verifies the factor value\n",
+        "operationId": "verifyFactor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/VerifyFactor"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "invalid request"
+          },
+          "404": {
+            "description": "backend not found"
+          },
+          "500": {
+            "description": "failed to mark token as verified"
+          }
+        }
+      }
+    },
+    "/wallets/{wallet-id}/verification": {
+      "parameters": [
+        {
+          "name": "wallet-id",
+          "in": "path",
+          "description": "related wallet id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "Wallet",
+          "Request Verification"
+        ],
+        "summary": "Requesting verification resend",
+        "description": "Instant delivery is not guaranteed.\n",
+        "operationId": "requestWalletVerification",
+        "responses": {
+          "204": {
+            "description": "token created"
+          },
+          "400": {
+            "description": "email already confirmed",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to get token",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wallet",
+          "Verify Wallet"
+        ],
+        "summary": "Verify Wallet",
+        "description": "After the wallet is created (and `verified` is false), a user should receive an email with the verification link with client router payload\n",
+        "operationId": "verifyWallet",
+        "responses": {
+          "204": {
+            "description": "Wallet was verified"
+          },
+          "400": {
+            "description": "invalid input parameters",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "failed to verify token",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Errors"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/VerificationRequest"
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "required": true,
+                    "$ref": "#/components/schemas/VerificationRequest"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Email verification token",
+          "required": true
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountKey": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "identity-account"
+            ]
+          },
+          "id": {
+            "description": "identifier",
+            "type": "string",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          }
+        }
+      },
+      "AccountsKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "accounts"
+            ]
+          }
+        }
+      },
+      "AdminInvite": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "attributes"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "admin-invite"
+                ]
+              },
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "example@mail.com"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Backend": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BackendKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "example": "totp"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BackendKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "backend"
+            ]
+          }
+        }
+      },
+      "Blob": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BlobKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "description": "arbitrary text",
+                    "type": "string",
+                    "example": "foobar"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "BlobKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "blah"
+          },
+          "type": {
+            "type": "string",
+            "description": "blob type",
+            "example": "asset_description",
+            "enum": [
+              "asset_description",
+              "fund_overview",
+              "fund_update",
+              "nav_update",
+              "fund_document",
+              "alpha",
+              "bravo",
+              "charlie",
+              "delta",
+              "token_terms",
+              "token_metrics",
+              "kyc_form",
+              "kyc_id_document",
+              "kyc_poa",
+              "identity_mind_reject"
+            ]
+          }
+        }
+      },
+      "BlobRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BlobKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "description": "arbitrary text",
+                    "type": "string",
+                    "example": "foobar"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "owner"
+                ],
+                "properties": {
+                  "owner": {
+                    "description": "blob owner",
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/OwnerKey"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ChangePhone": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChangePhoneKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "phone"
+                ],
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ChangePhoneKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "phone"
+            ]
+          },
+          "id": {
+            "description": "identifier",
+            "type": "string",
+            "example": "id"
+          }
+        }
+      },
+      "ChangeTelegramUsername": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChangeTelegramUsernameKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "username"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ChangeTelegramUsernameKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "telegram-username"
+            ]
+          },
+          "id": {
+            "description": "identifier",
+            "type": "string",
+            "example": "id"
+          }
+        }
+      },
+      "ChangeWallet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WalletKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "relationships",
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "email",
+                  "salt",
+                  "keychain_data"
+                ],
+                "properties": {
+                  "account_id": {
+                    "description": "unique identifier of the user account generated during the wallet creation",
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "email": {
+                    "description": "email address provided during the wallet creation",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "salt": {
+                    "description": "client-generated salt",
+                    "type": "string",
+                    "example": "qonp0sJgd30NQ916fzpO2A=="
+                  },
+                  "keychain_data": {
+                    "description": "arbitrary client-provided string",
+                    "type": "string",
+                    "example": "eyJJViI6IlRaRHppWWRTNEdKMjBYbi...RlTmFtZSI6ImdjbSJ9"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "kdf",
+                  "factor"
+                ],
+                "properties": {
+                  "kdf": {
+                    "type": "object",
+                    "description": "change wallet kdf",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/KDFKey"
+                      }
+                    }
+                  },
+                  "factor": {
+                    "type": "object",
+                    "description": "change wallet factor",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/FactorKey"
+                      }
+                    }
+                  },
+                  "transaction": {
+                    "type": "object",
+                    "description": "change wallet transaction envelope",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/TransactionEnvelopeKey"
+                      }
+                    }
+                  },
+                  "signer": {
+                    "type": "object",
+                    "description": "change wallet signer",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/SignerKey"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateAccount": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AccountKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "relationships"
+            ],
+            "properties": {
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "signers"
+                ],
+                "properties": {
+                  "signers": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/SignerKey"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateWallet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WalletKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "relationships",
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "email",
+                  "salt",
+                  "keychain_data"
+                ],
+                "properties": {
+                  "account_id": {
+                    "description": "unique identifier of the user account generated during the wallet creation",
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "email": {
+                    "description": "email address provided during the wallet creation",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "salt": {
+                    "description": "client-generated salt",
+                    "type": "string",
+                    "example": "qonp0sJgd30NQ916fzpO2A=="
+                  },
+                  "keychain_data": {
+                    "description": "arbitrary client-provided string",
+                    "type": "string",
+                    "example": "eyJJViI6IlRaRHppWWRTNEdKMjBYbi...RlTmFtZSI6ImdjbSJ9"
+                  },
+                  "verification_code": {
+                    "description": "optional verification code that may has been sent in user invitation",
+                    "type": "string",
+                    "example": "Q916"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "password",
+                  "kdf",
+                  "factor",
+                  "signers"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/PasswordKey"
+                      }
+                    }
+                  },
+                  "factor": {
+                    "type": "object",
+                    "description": "Additional wallet for password factor",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/FactorKey"
+                      }
+                    }
+                  },
+                  "kdf": {
+                    "type": "object",
+                    "description": "Key Derivation Function parameters used for wallet generation",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/KDFKey"
+                      }
+                    }
+                  },
+                  "referrer": {
+                    "type": "object",
+                    "description": "Wallet referrer",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/ReferrerKey"
+                      }
+                    }
+                  },
+                  "signers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/SignerKey"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Details": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Valid JSON of free form to attach details specific to operation, request etc."
+      },
+      "Document": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "content_type"
+                ],
+                "properties": {
+                  "content_type": {
+                    "description": "allowed content types",
+                    "type": "string",
+                    "example": "application/pdf"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "owner"
+                ],
+                "properties": {
+                  "owner": {
+                    "type": "object",
+                    "description": "document owner",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/DocumentOwnerKey"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "DocumentKey": {
         "type": "object",
         "properties": {
-          "data": {
-            "$ref": "#/components/schemas/Blob"
+          "type": {
+            "description": "document type",
+            "type": "string",
+            "enum": [
+              "asset_logo"
+            ]
+          }
+        }
+      },
+      "DocumentOwnerKey": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "owner address",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          }
+        }
+      },
+      "DocumentRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentRequestKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "content_type"
+                ],
+                "properties": {
+                  "content_type": {
+                    "description": "allowed content types",
+                    "type": "string",
+                    "example": "application/pdf"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "DocumentRequestKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "description": "document type",
+            "type": "string",
+            "enum": [
+              "asset_logo"
+            ]
+          }
+        }
+      },
+      "DocumentURL": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentURLKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "url of the document"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "DocumentURLKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "document_url"
+            ]
+          }
+        }
+      },
+      "Email": {
+        "description": "User email address",
+        "type": "string",
+        "format": "test",
+        "example": "john.smith@example.com"
+      },
+      "Enums": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EnumsKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "EnumsKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "enums"
+            ]
           }
         }
       },
@@ -144,7 +3824,7 @@
         "properties": {
           "errors": {
             "type": "array",
-            "description": "Non empty array of errors occurred during request processing",
+            "description": "Non-empty array of errors occurred during the request processing",
             "items": {
               "type": "object",
               "required": [
@@ -154,17 +3834,17 @@
               "properties": {
                 "title": {
                   "type": "string",
-                  "description": "Title is a short, human-readable summary of the problem",
+                  "description": "Short, human-readable summary of the problem",
                   "example": "Bad Request"
                 },
                 "detail": {
                   "type": "string",
-                  "description": "Detail is a human-readable explanation specific to this occurrence of the problem",
+                  "description": "Human-readable explanation specific to this occurrence of the problem",
                   "example": "Request body was expected"
                 },
                 "status": {
                   "type": "integer",
-                  "description": "Status is the HTTP status code applicable to this problem",
+                  "description": "HTTP status code applicable to this problem",
                   "example": 400,
                   "enum": [
                     400,
@@ -179,20 +3859,1796 @@
             }
           }
         }
+      },
+      "Factor": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FactorKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "FactorKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "password"
+            ]
+          },
+          "id": {
+            "description": "identifier",
+            "type": "string",
+            "example": "id"
+          }
+        }
+      },
+      "GeneralInvite": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "attributes"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "general-invite"
+                ]
+              },
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "example@mail.com"
+                  },
+                  "sender": {
+                    "type": "string",
+                    "example": "Name"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Identity": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IdentityKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "address",
+                  "updated_at",
+                  "email",
+                  "status"
+                ],
+                "properties": {
+                  "address": {
+                    "description": "unique identifier of the user account",
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "updated_at": {
+                    "type": "string",
+                    "example": "2018-11-23T16:35:11Z"
+                  },
+                  "email": {
+                    "description": "email address",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "phone_number": {
+                    "description": "user's phone number",
+                    "type": "string",
+                    "example": "0123456789"
+                  },
+                  "telegram_username": {
+                    "description": "user's telegram username",
+                    "type": "string",
+                    "example": "username"
+                  },
+                  "status": {
+                    "description": "user's status",
+                    "type": "string",
+                    "example": "active"
+                  },
+                  "registered_at": {
+                    "description": "account registration date",
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2018-11-23T16:35:11Z"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "account"
+                ],
+                "properties": {
+                  "account": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/IdentityLinksKey"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "IdentityKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "identity"
+            ]
+          }
+        }
+      },
+      "IdentityLinksKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "links": {
+            "type": "object",
+            "properties": {
+              "related": {
+                "type": "string",
+                "example": "/v3/accounts/GB2AHC3Z4CKLAVVT5U3KFFSLCWARR4JS26GYOXBAC6K3LAN3NHULZKMW"
+              }
+            }
+          }
+        }
+      },
+      "IdentityRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IdentityKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "description": "email address",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "IdentitySetting": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IdentitySettingKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "description": "defines the name of the setting to be applied to the identity",
+                    "type": "string"
+                  },
+                  "value": {
+                    "$ref": "#/components/schemas/Details"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/IdentityKey"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "IdentitySettingKey": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "type": {
+            "description": "resource type",
+            "type": "string",
+            "enum": [
+              "identity_settings"
+            ]
+          },
+          "id": {
+            "description": "identity settings identifier",
+            "type": "string"
+          }
+        }
+      },
+      "IdentitySigner": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IdentitySignerKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "role_id",
+                  "weight",
+                  "identity"
+                ],
+                "properties": {
+                  "role_id": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "weight": {
+                    "type": "integer",
+                    "example": 1000
+                  },
+                  "identity": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "IdentitySignerKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "identity-signer"
+            ]
+          }
+        }
+      },
+      "InviteEntity": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InviteEntityKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "example@mail.com"
+                  },
+                  "sender": {
+                    "type": "string",
+                    "example": "Name"
+                  },
+                  "sent_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2006-01-02T15:04:05.999999999Z"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "sales": {
+                    "$ref": "#/components/schemas/SalesKey"
+                  },
+                  "accounts": {
+                    "$ref": "#/components/schemas/AccountsKey"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "InviteEntityKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "whitelist-invite",
+              "general-invite"
+            ]
+          }
+        }
+      },
+      "KDF": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/KDFKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "description": "KDF parameters which should be used for derivation",
+                "type": "object",
+                "required": [
+                  "algorithm",
+                  "bits",
+                  "n",
+                  "r",
+                  "p"
+                ],
+                "properties": {
+                  "algorithm": {
+                    "description": "kdf algorithm",
+                    "type": "string",
+                    "example": "scrypt"
+                  },
+                  "bits": {
+                    "type": "integer",
+                    "example": 256
+                  },
+                  "n": {
+                    "type": "integer",
+                    "example": 4096
+                  },
+                  "r": {
+                    "type": "integer",
+                    "example": 8
+                  },
+                  "p": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "salt": {
+                    "type": "string",
+                    "example": "E8C7204F5E3E91FA87662308B7E459F01757B005C647E49A7A49AEF32845D868"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "KDFKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "kdf"
+            ]
+          },
+          "id": {
+            "description": "version of KDF parameters used to derive wallet data\n\n1 - means that a wallet id should be calculated as it is, without any formatting\n\n2 - means that wallet id should be calculated with lowercased email\n",
+            "type": "string",
+            "example": 2,
+            "enum": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "KYCRecoveryWallet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/KYCRecoveryWalletKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "relationships",
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "salt",
+                  "keychain_data"
+                ],
+                "properties": {
+                  "email": {
+                    "description": "email address provided during the wallet creation",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "salt": {
+                    "description": "client-generated salt",
+                    "type": "string",
+                    "example": "qonp0sJgd30NQ916fzpO2A=="
+                  },
+                  "keychain_data": {
+                    "description": "arbitrary client-provided string",
+                    "type": "string",
+                    "example": "eyJJViI6IlRaRHppWWRTNEdKMjBYbi...RlTmFtZSI6ImdjbSJ9"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "kdf",
+                  "factor",
+                  "signer"
+                ],
+                "properties": {
+                  "kdf": {
+                    "type": "object",
+                    "description": "kdf for recovery wallet",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/KDFKey"
+                      }
+                    }
+                  },
+                  "factor": {
+                    "type": "object",
+                    "description": "factor for recovery wallet",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/FactorKey"
+                      }
+                    }
+                  },
+                  "signer": {
+                    "type": "object",
+                    "description": "new signer for recovery",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/SignerKey"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "KYCRecoveryWalletKey": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "type": {
+            "description": "resource type",
+            "type": "string",
+            "enum": [
+              "recovery-wallet"
+            ]
+          },
+          "id": {
+            "description": "wallet identifier",
+            "type": "string",
+            "example": "388108095960430b80554ac3efb6807a9f286854033aca47f6f466094ab50876"
+          }
+        }
+      },
+      "LedgerEntryChangeKey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "17179869186:17179869186:0"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ledger-entry-changes"
+            ]
+          }
+        }
+      },
+      "Links": {
+        "type": "object",
+        "required": [
+          "self"
+        ],
+        "properties": {
+          "self": {
+            "type": "string"
+          },
+          "first": {
+            "type": "string"
+          },
+          "prev": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "last": {
+            "type": "string"
+          },
+          "related": {
+            "type": "string"
+          }
+        }
+      },
+      "MassEmailsKey": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "account"
+            ]
+          }
+        }
+      },
+      "MultisigTransaction": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MultisigTransactionKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "tx"
+                ],
+                "properties": {
+                  "tx": {
+                    "type": "string",
+                    "description": "base-64 encoded XDR representation of transaction itself",
+                    "example": "AAAAAEHCX5tmu0fXlkE9GLIOLO185ih5QI7V+PZ1mtb1tnzSA59veKFdUjsAAAAAAAAAAAAAAABchp31A..."
+                  },
+                  "wait_for_ingest": {
+                    "type": "boolean",
+                    "description": "defines whether to wait for ingest of transaction or not",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MultisigTransactionKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "description": "resource type",
+            "type": "string",
+            "enum": [
+              "multisig-transactions"
+            ]
+          }
+        }
+      },
+      "OperationKey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "17179869186"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "operations"
+            ]
+          }
+        }
+      },
+      "OwnerKey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          }
+        }
+      },
+      "Password": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PasswordKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "keychain_data",
+                  "salt"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "keychain_data": {
+                    "description": "arbitrary client-provided string",
+                    "type": "string",
+                    "example": "eyJJViI6IlRaRHppWWRTNEdKMjBYbisiLCJjaXBo...CJtb2RlTmFtZSI6ImdjbSJ9"
+                  },
+                  "salt": {
+                    "description": "client-generated salt",
+                    "type": "string",
+                    "example": "qonp0sJgd30NQ916fzpO2A=="
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PasswordKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "passwordID"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "password"
+            ]
+          }
+        }
+      },
+      "PublicIdentity": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublicIdentityKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "address",
+                  "status"
+                ],
+                "properties": {
+                  "email": {
+                    "description": "account email",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "address": {
+                    "description": "account identifier",
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "phone_number": {
+                    "description": "user's phone number",
+                    "type": "string",
+                    "example": "0123456789"
+                  },
+                  "telegram_username": {
+                    "description": "user's telegram username",
+                    "type": "string",
+                    "example": "username"
+                  },
+                  "status": {
+                    "description": "identity status",
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "account"
+                ],
+                "properties": {
+                  "account": {
+                    "type": "object",
+                    "$ref": "#/components/schemas/IdentityLinksKey"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PublicIdentityKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "description": "resource type",
+            "type": "string",
+            "enum": [
+              "identity"
+            ]
+          }
+        }
+      },
+      "ReferrerKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "referrer"
+            ]
+          }
+        }
+      },
+      "RequestToken": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RequestTokenKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "RequestTokenKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "token-request"
+            ]
+          },
+          "id": {
+            "description": "identifier",
+            "type": "string",
+            "example": "id"
+          }
+        }
+      },
+      "ResourceType": {
+        "type": "string",
+        "enum": [
+          "kdf",
+          "transaction",
+          "factor",
+          "wallet",
+          "recovery",
+          "wallet_verification",
+          "totp",
+          "backend",
+          "factor_verification",
+          "asset_description",
+          "identity",
+          "document_url",
+          "upload_policy",
+          "enums",
+          "password",
+          "blob",
+          "owner",
+          "referrer",
+          "whitelist-invite",
+          "general-invite",
+          "accounts",
+          "sales",
+          "recovery-wallet"
+        ]
+      },
+      "SalesKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "sales"
+            ]
+          }
+        }
+      },
+      "SecondFactorRequiredError": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "enum": [
+              "Forbidden"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "tfa_required"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "403"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "enum": [
+              "Additional factor required"
+            ]
+          },
+          "meta": {
+            "type": "object",
+            "description": "factor specific data"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SessionKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "encryption_key",
+                  "expires_at"
+                ],
+                "properties": {
+                  "expires_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2019-05-29T16:44:58Z"
+                  },
+                  "encryption_key": {
+                    "type": "string",
+                    "example": "f95d70b7ffae669d0bc24d247a9b517ecbde8c636d1e8ab3bbb7f8b0bddd3f9f"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SessionKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "01D78XYFJ1PRM1WPBCBT3VHMNV"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "sessions"
+            ]
+          }
+        }
+      },
+      "Signer": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SignerKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "role_id",
+                  "weight",
+                  "identity"
+                ],
+                "properties": {
+                  "role_id": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "weight": {
+                    "type": "integer",
+                    "example": 1000
+                  },
+                  "identity": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SignerKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "signer"
+            ]
+          }
+        }
+      },
+      "TFA": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TFAKey"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "TFAKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "totp",
+            "enum": [
+              "totp",
+              "password"
+            ]
+          }
+        }
+      },
+      "Token": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TokenKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TokenKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "verification-token"
+            ]
+          },
+          "id": {
+            "description": "identifier",
+            "type": "string",
+            "example": "id"
+          }
+        }
+      },
+      "Transaction": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TransactionKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "hash",
+                  "ledger_sequence - created_at - envelope_xdr - result_xdr - result_meta_xdr"
+                ],
+                "properties": {
+                  "hash": {
+                    "type": "string",
+                    "example": "575a8bad0a67378029c778d92eb5367136e89530830ed8275ff20ac80160a80d",
+                    "description": "hash of transaction"
+                  },
+                  "ledger_sequence": {
+                    "type": "integer",
+                    "format": "int32",
+                    "example": 4,
+                    "description": "sequence of ledger where transaction belongs to"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "close time of ledger where transaction belongs to",
+                    "example": "2019-03-04T18:42:15Z"
+                  },
+                  "envelope_xdr": {
+                    "type": "string",
+                    "description": "base-64 encoded XDR representation of transaction itself",
+                    "example": "AAAAAEHCX5tmu0fXlkE9GLIOLO185ih5QI7V+PZ1mtb1tnzSA59veKFdUjsAAAAAAAAAAAAAAABchp31A..."
+                  },
+                  "result_xdr": {
+                    "type": "string",
+                    "description": "base-64 encoded XDR representation of core response",
+                    "example": "AAAAAAAAAAAAAAAAAAAAAQAAAAAAAAALAAAAAAAAAAAAAAABAAAAAQAAAAAAAAAA"
+                  },
+                  "result_meta_xdr": {
+                    "type": "string",
+                    "description": "base-64 encoded XDR representation of core response's meta information",
+                    "example": "AAAAAAAAAAEAAAAMAAAAAwAAAAEAAAAaAAAAAAAAAAEAAAABAAAAAAAAAAEAAAACe30AAAAAAAAAAAAAAAAAAwAAAA.."
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "operations": {
+                    "description": "represents operations included to transaction",
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/OperationKey"
+                    }
+                  },
+                  "source": {
+                    "description": "represents source account of transaction",
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/AccountsKey"
+                      }
+                    }
+                  },
+                  "ledger_entry_changes": {
+                    "description": "represents exact changes of ledger entries caused by transaction",
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LedgerEntryChangeKey"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TransactionEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TransactionEnvelopeKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "required": [
+                  "envelope"
+                ],
+                "type": "object",
+                "properties": {
+                  "envelope": {
+                    "description": "transaction envelope",
+                    "type": "string",
+                    "example": "AAA...AAAA"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TransactionEnvelopeKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "transactionID"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "transaction"
+            ]
+          }
+        }
+      },
+      "TransactionKey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "17179869186"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "transactions"
+            ]
+          }
+        }
+      },
+      "UpdateWallet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WalletKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "relationships",
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "email",
+                  "salt",
+                  "keychain_data"
+                ],
+                "properties": {
+                  "account_id": {
+                    "description": "unique identifier of the user account generated during the wallet creation",
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "email": {
+                    "description": "email address provided during the wallet creation",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "salt": {
+                    "description": "client-generated salt",
+                    "type": "string",
+                    "example": "qonp0sJgd30NQ916fzpO2A=="
+                  },
+                  "keychain_data": {
+                    "description": "arbitrary client-provided string",
+                    "type": "string",
+                    "example": "eyJJViI6IlRaRHppWWRTNEdKMjBYbi...RlTmFtZSI6ImdjbSJ9"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "kdf",
+                  "factor",
+                  "transaction"
+                ],
+                "properties": {
+                  "kdf": {
+                    "type": "object",
+                    "description": "kdf",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/KDFKey"
+                      }
+                    }
+                  },
+                  "factor": {
+                    "type": "object",
+                    "description": "factor",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/FactorKey"
+                      }
+                    }
+                  },
+                  "transaction": {
+                    "type": "object",
+                    "description": "transaction envelope",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "$ref": "#/components/schemas/TransactionEnvelopeKey"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "UploadForm": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UploadFormKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "UploadFormKey": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "upload_policy"
+          }
+        }
+      },
+      "VerificationRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VerificationRequestKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "description": "email verification token",
+                    "type": "string",
+                    "example": "JOqIgfCNSjnGWDrTPWbW"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "VerificationRequestKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "description": "request type",
+            "type": "string",
+            "enum": [
+              "wallet_verification"
+            ]
+          }
+        }
+      },
+      "VerificationRequiredError": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "enum": [
+              "Forbidden"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "verification_required"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "403"
+            ]
+          }
+        }
+      },
+      "VerifyFactor": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VerifyFactorKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "required": [
+                  "token",
+                  "otp"
+                ],
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "example": "4402502ad8d4c80d06d28e988071aabe082afea1"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "example": 123456
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "VerifyFactorKey": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "factor_verification"
+            ]
+          }
+        }
+      },
+      "Wallet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WalletKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "email",
+                  "keychain_data",
+                  "verified",
+                  "last_sent_at"
+                ],
+                "properties": {
+                  "account_id": {
+                    "description": "unique identifier of the user account generated during the wallet creation",
+                    "type": "string",
+                    "example": "GBSR6JG5AYSAW7HK6EGJFYVIVN54LVGSY3ZLJ6X3IBQZ766EJABCZQTH"
+                  },
+                  "email": {
+                    "description": "email address provided during the wallet creation",
+                    "type": "string",
+                    "example": "email@mail.com"
+                  },
+                  "keychain_data": {
+                    "description": "client-provided string derived from wallet keys",
+                    "type": "string",
+                    "example": "eyJJViI6IlRaRHppWWRTNEdKMjBYbisiLCJjaXBo...CJtb2RlTmFtZSI6ImdjbSJ9"
+                  },
+                  "verified": {
+                    "description": "shows whether or not the wallet is verified (whether the user of a wallet has been verified via email link)",
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "last_sent_at": {
+                    "description": "shows when the verified letter was sent",
+                    "type": "string",
+                    "example": "2018-11-23T16:35:11Z"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "password",
+                  "kdf",
+                  "factor"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "object",
+                    "description": "Password factor",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/FactorKey"
+                      }
+                    }
+                  },
+                  "kdf": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/KDFKey"
+                      }
+                    }
+                  },
+                  "factor": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/FactorKey"
+                      }
+                    }
+                  },
+                  "referrer": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/ReferrerKey"
+                      }
+                    }
+                  },
+                  "session": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/SessionKey"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "WalletFactor": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WalletFactorKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attributes"
+            ],
+            "properties": {
+              "attributes": {
+                "required": [
+                  "priority"
+                ],
+                "type": "object",
+                "properties": {
+                  "priority": {
+                    "type": "integer",
+                    "example": 100
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "WalletFactorKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "id of the wallet",
+            "example": "388108095960430b80554ac3efb6807a9f286854033aca47f6f466094ab50876"
+          },
+          "type": {
+            "description": "wallet factor type",
+            "type": "string",
+            "example": "password",
+            "enum": [
+              "password",
+              "totp"
+            ]
+          }
+        }
+      },
+      "WalletKey": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "type": {
+            "description": "resource type",
+            "type": "string",
+            "enum": [
+              "wallet"
+            ]
+          },
+          "id": {
+            "description": "wallet identifier",
+            "type": "string",
+            "example": "388108095960430b80554ac3efb6807a9f286854033aca47f6f466094ab50876"
+          }
+        }
+      },
+      "WhitelistInvite": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "attributes",
+              "relationships"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "whitelist-invite"
+                ]
+              },
+              "attributes": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "example@mail.com"
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "required": [
+                  "sales"
+                ],
+                "properties": {
+                  "sales": {
+                    "$ref": "#/components/schemas/SalesKey"
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     "parameters": {
-      "pageLimitParam": {
+      "filterEmail": {
         "in": "query",
-        "name": "page[limit]",
+        "name": "filter[email]",
         "required": false,
         "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 15,
-          "description": "Numbers of items per page to return."
-        }
+          "type": "string"
+        },
+        "description": "filtering by email."
+      },
+      "filterState": {
+        "in": "query",
+        "name": "filter[state]",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "filtering by state."
+      },
+      "filterType": {
+        "in": "query",
+        "name": "filter[type]",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "filtering by resource type."
       },
       "pageNumberParam": {
         "in": "query",
@@ -202,19 +5658,14 @@
           "type": "integer"
         },
         "description": "The number of a page to return."
-      },
-      "sortingParam": {
-        "in": "query",
-        "name": "page[order]",
-        "required": false,
+      }
+    },
+    "headers": {
+      "ExpiresAfter": {
+        "description": "date in UTC when token expires",
         "schema": {
           "type": "string",
-          "enum": [
-            "asc",
-            "desc"
-          ],
-          "default": "desc",
-          "description": "Order of records on the page. If sortingParam is not specified, order of records is by default sorted by ID."
+          "format": "date-time"
         }
       }
     }
